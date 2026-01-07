@@ -110,3 +110,73 @@ def get_outlet(host: str, outlet: int, username: str, password: str) -> bool:
         raise RuntimeError(f"HTTP error {e.code}: {e.reason}")
     except urllib.error.URLError as e:
         raise RuntimeError(f"URL error: {e.reason}")
+
+
+def get_all_status(host: str, username: str, password: str) -> dict[str, bool | float]:
+    """Get status of all outlets and current measurement via HTTP CGI interface.
+
+    Args:
+        host: PDU IP address or URL
+        username: Authentication username
+        password: Authentication password
+
+    Returns:
+        Dictionary with keys 'outlet1' (bool), 'outlet2' (bool), 'current' (float)
+
+    Raises:
+        RuntimeError: If HTTP request fails or response format is invalid
+    """
+    base_url, (default_user, default_pass) = _parse_host(host)
+
+    # Use provided credentials or defaults from URL
+    auth_user = username if username != 'admin' else default_user
+    auth_pass = password if password != 'admin' else default_pass
+
+    url = f"{base_url}/cmd.cgi?$A5"
+
+    # Create request with Basic Auth
+    req = urllib.request.Request(url)
+    credentials = base64.b64encode(f'{auth_user}:{auth_pass}'.encode()).decode()
+    req.add_header('Authorization', f'Basic {credentials}')
+
+    try:
+        with urllib.request.urlopen(req, timeout=5) as response:
+            text = response.read().decode()
+
+            # Response format: "$A0,xx,cccc,tt"
+            # where $A0 = success, xx = outlet states (1=ON, 0=OFF), rightmost is outlet 1
+            # cccc = current consumption in amps
+            response_text = text.strip()
+            fields = response_text.split(',')
+
+            if len(fields) < 3:
+                raise RuntimeError(f"Invalid PDU response format: {response_text}")
+
+            states = fields[1]
+            current_str = fields[2]
+
+            # Reverse because rightmost character is outlet 1
+            states_reversed = states[::-1]
+
+            # Validate we have at least 2 outlets in response
+            if len(states_reversed) < 2:
+                raise RuntimeError(f"Invalid outlet states in response: {states}")
+
+            outlet1 = states_reversed[0] == '1'
+            outlet2 = states_reversed[1] == '1'
+
+            # Parse current measurement, default to 0.0 if invalid
+            try:
+                current = float(current_str)
+            except ValueError:
+                current = 0.0
+
+            return {
+                'outlet1': outlet1,
+                'outlet2': outlet2,
+                'current': current
+            }
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"HTTP error {e.code}: {e.reason}")
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"URL error: {e.reason}")

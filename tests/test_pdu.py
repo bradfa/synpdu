@@ -2,7 +2,7 @@
 
 import pytest
 from unittest.mock import MagicMock, patch
-from synpdu.pdu import _parse_host, set_outlet, get_outlet
+from synpdu.pdu import _parse_host, set_outlet, get_outlet, get_all_status
 
 
 class TestParseHost:
@@ -144,3 +144,117 @@ class TestGetOutlet:
         # Test outlet 3 (too high for 2-outlet PDU)
         with pytest.raises(ValueError, match='Invalid outlet number'):
             get_outlet('192.168.1.100', 3, 'admin', 'admin')
+
+
+class TestGetAllStatus:
+    """Tests for get_all_status function."""
+
+    def test_get_all_status_mixed(self, mocker):
+        """Test reading all outlet states when mixed (outlet 1 ON, outlet 2 OFF)."""
+        # Mock the response - outlet 1 is ON, outlet 2 is OFF
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'$A0,01,0.05,XX'
+        mock_response.__enter__.return_value = mock_response
+        mock_response.__exit__.return_value = None
+
+        mock_urlopen = mocker.patch('urllib.request.urlopen', return_value=mock_response)
+        mock_request = mocker.patch('urllib.request.Request')
+
+        status = get_all_status('192.168.1.100', 'admin', 'admin')
+
+        assert status['outlet1'] is True
+        assert status['outlet2'] is False
+        assert status['current'] == 0.05
+
+        # Verify Request was created with correct URL
+        mock_request.assert_called_once()
+        call_args = mock_request.call_args[0]
+        assert call_args[0] == 'http://192.168.1.100/cmd.cgi?$A5'
+
+        # Verify urlopen was called with timeout
+        mock_urlopen.assert_called_once()
+        assert mock_urlopen.call_args[1]['timeout'] == 5
+
+    def test_get_all_status_both_on(self, mocker):
+        """Test reading all outlet states when both ON."""
+        # Mock the response - both outlets ON
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'$A0,11,1.23,XX'
+        mock_response.__enter__.return_value = mock_response
+        mock_response.__exit__.return_value = None
+
+        mocker.patch('urllib.request.urlopen', return_value=mock_response)
+        mocker.patch('urllib.request.Request')
+
+        status = get_all_status('192.168.1.100', 'admin', 'admin')
+
+        assert status['outlet1'] is True
+        assert status['outlet2'] is True
+        assert status['current'] == 1.23
+
+    def test_get_all_status_both_off(self, mocker):
+        """Test reading all outlet states when both OFF."""
+        # Mock the response - both outlets OFF
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'$A0,00,0.00,XX'
+        mock_response.__enter__.return_value = mock_response
+        mock_response.__exit__.return_value = None
+
+        mocker.patch('urllib.request.urlopen', return_value=mock_response)
+        mocker.patch('urllib.request.Request')
+
+        status = get_all_status('192.168.1.100', 'admin', 'admin')
+
+        assert status['outlet1'] is False
+        assert status['outlet2'] is False
+        assert status['current'] == 0.0
+
+    def test_get_all_status_http_error(self, mocker):
+        """Test HTTP error handling."""
+        import urllib.error
+
+        # Mock HTTP error
+        mock_urlopen = mocker.patch('urllib.request.urlopen')
+        mock_urlopen.side_effect = urllib.error.HTTPError(
+            url='http://192.168.1.100/cmd.cgi?$A5',
+            code=401,
+            msg='Unauthorized',
+            hdrs={},
+            fp=None
+        )
+        mocker.patch('urllib.request.Request')
+
+        with pytest.raises(RuntimeError, match='HTTP error 401'):
+            get_all_status('192.168.1.100', 'admin', 'admin')
+
+    def test_get_all_status_invalid_format(self, mocker):
+        """Test invalid response format handling."""
+        # Mock response with too few fields
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'$A0,01'  # Missing current field
+        mock_response.__enter__.return_value = mock_response
+        mock_response.__exit__.return_value = None
+
+        mocker.patch('urllib.request.urlopen', return_value=mock_response)
+        mocker.patch('urllib.request.Request')
+
+        with pytest.raises(RuntimeError, match='Invalid PDU response format'):
+            get_all_status('192.168.1.100', 'admin', 'admin')
+
+    def test_get_all_status_invalid_current(self, mocker):
+        """Test handling of invalid current value."""
+        # Mock response with non-numeric current field
+        mock_response = MagicMock()
+        mock_response.read.return_value = b'$A0,01,INVALID,XX'
+        mock_response.__enter__.return_value = mock_response
+        mock_response.__exit__.return_value = None
+
+        mocker.patch('urllib.request.urlopen', return_value=mock_response)
+        mocker.patch('urllib.request.Request')
+
+        status = get_all_status('192.168.1.100', 'admin', 'admin')
+
+        # Should default to 0.0 when current is invalid
+        assert status['outlet1'] is True
+        assert status['outlet2'] is False
+        assert status['current'] == 0.0

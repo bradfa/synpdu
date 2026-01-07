@@ -3,7 +3,7 @@
 import argparse
 import sys
 from synpdu import __version__
-from synpdu.pdu import set_outlet, get_outlet
+from synpdu.pdu import set_outlet, get_outlet, get_all_status
 
 
 def main():
@@ -16,7 +16,8 @@ def main():
         'outlet',
         type=int,
         choices=[1, 2],
-        help='Outlet number (1 or 2)'
+        nargs='?',
+        help='Outlet number (1 or 2) - optional for status command'
     )
     parser.add_argument(
         'command',
@@ -46,6 +47,10 @@ def main():
 
     args = parser.parse_args()
 
+    # Validate that outlet is provided for on/off commands
+    if args.command in ['on', 'off'] and args.outlet is None:
+        parser.error(f"outlet is required for '{args.command}' command")
+
     try:
         if args.command == 'on':
             set_outlet(args.host, args.outlet, True, args.username, args.password)
@@ -54,11 +59,19 @@ def main():
             set_outlet(args.host, args.outlet, False, args.username, args.password)
             print(f"Outlet {args.outlet} turned OFF")
         elif args.command == 'status':
-            state = get_outlet(args.host, args.outlet, args.username, args.password)
-            if state:
-                print(f"Outlet {args.outlet} is ON")
+            if args.outlet is None:
+                # Show all outlets and current measurement
+                status = get_all_status(args.host, args.username, args.password)
+                print(f"Outlet 1 is {'ON' if status['outlet1'] else 'OFF'}")
+                print(f"Outlet 2 is {'ON' if status['outlet2'] else 'OFF'}")
+                print(f"Current: {status['current']} A")
             else:
-                print(f"Outlet {args.outlet} is OFF")
+                # Show single outlet status
+                state = get_outlet(args.host, args.outlet, args.username, args.password)
+                if state:
+                    print(f"Outlet {args.outlet} is ON")
+                else:
+                    print(f"Outlet {args.outlet} is OFF")
         sys.exit(0)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

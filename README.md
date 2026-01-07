@@ -52,6 +52,18 @@ Check outlet 1 status:
 synpdu 1 status
 ```
 
+Check all outlets and current measurement:
+```bash
+synpdu status
+```
+
+Example output:
+```
+Outlet 1 is ON
+Outlet 2 is OFF
+Current: 0.05 A
+```
+
 ### Custom PDU Configuration
 
 By default, `synpdu` connects to a PDU at `192.168.1.100` using credentials `admin:admin`. You can override these with command-line flags:
@@ -69,10 +81,10 @@ synpdu 1 on --host https://192.168.1.100:8080
 ### Command-Line Options
 
 ```
-synpdu [-h] [--host HOST] [--username USERNAME] [--password PASSWORD] [--version] {1,2} {on,off,status}
+synpdu [-h] [--host HOST] [--username USERNAME] [--password PASSWORD] [--version] [{1,2}] {on,off,status}
 
 Positional arguments:
-  {1,2}                 Outlet number (1 or 2)
+  {1,2}                 Outlet number (1 or 2) - optional for status command
   {on,off,status}       Command to execute
 
 Options:
@@ -82,6 +94,9 @@ Options:
   --password PASSWORD   PDU password (default: admin)
   --version             Show program's version number and exit
 ```
+
+**Note:** The outlet number is required for `on` and `off` commands, but optional for `status`.
+When no outlet is specified with `status`, all outlets and current measurement are displayed.
 
 ## Development
 
