@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "synpdu"
+version = "0.1.0"
+description = "CLI tool to control Synaccess Netbooter NP-0201DU PDU"
+authors = [{name = "Andrew Bradford"}]
+license = {text = "GPL-2.0"}
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Hardware",
+    "Topic :: Utilities",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-mock",
+]
+
+[project.scripts]
+synpdu = "synpdu.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/bradfa/synpdu"
+Issues = "https://github.com/bradfa/synpdu/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
