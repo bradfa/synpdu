@@ -7,7 +7,7 @@ name = "synpdu"
 version = "0.2.0"
 description = "CLI tool to control Synaccess Netbooter NP-0201DU PDU"
 authors = [{name = "Andrew Bradford"}]
-license = {text = "GPL-2.0"}
+license = "GPL-2.0-only"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
@@ -15,7 +15,6 @@ classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
